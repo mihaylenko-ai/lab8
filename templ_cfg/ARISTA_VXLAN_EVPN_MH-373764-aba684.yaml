@@ -1,0 +1,795 @@
+hostname LEAF-1
+!
+spanning-tree mode rapid-pvst
+spanning-tree root super
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vlan 10,20,30,101-102
+!
+vrf instance TENANT-1
+!
+vrf instance TENANT-2
+!
+interface Port-Channel1
+   switchport mode trunk
+   !
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:1212
+      route-target import 00:00:00:00:00:12
+   lacp system-id 02aa.aaaa.1212
+!
+interface Port-Channel10
+   switchport mode trunk
+   !
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:1111
+      route-target import 00:00:00:00:11:11
+   lacp system-id 01bb.bbbb.1111
+!
+interface Ethernet1
+   no switchport
+   ip address 10.0.0.1/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet2
+   no switchport
+   ip address 10.0.0.3/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet3
+!
+interface Ethernet4
+!
+interface Ethernet5
+   channel-group 10 mode active
+!
+interface Ethernet6
+!
+interface Ethernet7
+   channel-group 1 mode active
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 1.1.1.1/32
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+interface Vlan10
+   vrf TENANT-1
+   ip address virtual 192.168.10.1/24
+!
+interface Vlan20
+   vrf TENANT-1
+   ip address virtual 192.168.20.1/24
+!
+interface Vlan30
+   vrf TENANT-2
+   ip address virtual 192.168.30.1/24
+!
+interface Vlan101
+   vrf TENANT-1
+   ip address 10.10.10.1/29
+!
+interface Vlan102
+   vrf TENANT-2
+   ip address 10.20.20.1/29
+!
+interface Vxlan1
+   vxlan source-interface Loopback0
+   vxlan udp-port 4789
+   vxlan vlan 10 vni 10010
+   vxlan vlan 20 vni 10020
+   vxlan vlan 30 vni 10030
+   vxlan vlan 101 vni 10101
+   vxlan vlan 102 vni 10102
+   vxlan vrf TENANT-1 vni 10100
+   vxlan vrf TENANT-2 vni 10200
+!
+ip virtual-router mac-address 00:00:00:00:00:01
+!
+ip routing
+ip routing vrf TENANT-1
+ip routing vrf TENANT-2
+!
+router bgp 65000
+   neighbor 11.11.11.11 remote-as 65000
+   neighbor 11.11.11.11 update-source Loopback0
+   neighbor 11.11.11.11 send-community extended
+   neighbor 22.22.22.22 remote-as 65000
+   neighbor 22.22.22.22 update-source Loopback0
+   neighbor 22.22.22.22 send-community extended
+   !
+   vlan 10
+      rd auto
+      route-target both 65000:10010
+      redistribute learned
+   !
+   vlan 20
+      rd auto
+      route-target both 65000:10020
+      redistribute learned
+   !
+   vlan 30
+      rd auto
+      route-target both 65000:10030
+      redistribute learned
+   !
+   vlan 101
+      rd auto
+      route-target both 65000:10101
+      redistribute learned
+   !
+   vlan 102
+      rd auto
+      route-target both 65000:10102
+      redistribute learned
+   !
+   address-family evpn
+      neighbor 11.11.11.11 activate
+      neighbor 22.22.22.22 activate
+   !
+   address-family ipv4
+      no neighbor 11.11.11.11 activate
+      no neighbor 22.22.22.22 activate
+   !
+   vrf TENANT-1
+      rd 65000:10100
+      route-target import evpn 65000:10100
+      route-target export evpn 65000:10100
+      neighbor 10.10.10.3 remote-as 55000
+      !
+      address-family ipv4
+         redistribute connected
+   !
+   vrf TENANT-2
+      rd 65000:10200
+      route-target import evpn 65000:10200
+      route-target export evpn 65000:10200
+      neighbor 10.20.20.3 remote-as 55000
+      !
+      address-family ipv4
+         redistribute connected
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1
+   router-id 1.1.1.1
+   bfd default
+   max-lsa 12000
+!
+end
+
+hostname LEAF-2
+!
+spanning-tree mode rapid-pvst
+spanning-tree root super
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vlan 10,20,30,101-102
+!
+vrf instance TENANT-1
+!
+vrf instance TENANT-2
+!
+interface Port-Channel1
+   switchport mode trunk
+   !
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:1212
+      route-target import 00:00:00:00:00:12
+   lacp system-id 02aa.aaaa.1212
+!
+interface Port-Channel10
+   switchport mode trunk
+   !
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:1111
+      route-target import 00:00:00:00:11:11
+   lacp system-id 01bb.bbbb.1111
+!
+interface Ethernet1
+   no switchport
+   ip address 10.0.0.7/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet2
+   no switchport
+   ip address 10.0.0.5/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet3
+!
+interface Ethernet4
+   switchport access vlan 30
+!
+interface Ethernet5
+   channel-group 10 mode active
+!
+interface Ethernet6
+!
+interface Ethernet7
+   channel-group 1 mode active
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 2.2.2.2/32
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+interface Vlan10
+   vrf TENANT-1
+   ip address virtual 192.168.10.1/24
+!
+interface Vlan20
+   vrf TENANT-1
+   ip address virtual 192.168.20.1/24
+!
+interface Vlan30
+   vrf TENANT-2
+   ip address virtual 192.168.30.1/24
+!
+interface Vlan101
+   vrf TENANT-1
+   ip address 10.10.10.2/29
+!
+interface Vlan102
+   vrf TENANT-2
+   ip address 10.20.20.2/29
+!
+interface Vxlan1
+   vxlan source-interface Loopback0
+   vxlan udp-port 4789
+   vxlan vlan 10 vni 10010
+   vxlan vlan 20 vni 10020
+   vxlan vlan 30 vni 10030
+   vxlan vlan 101 vni 10101
+   vxlan vlan 102 vni 10102
+   vxlan vrf TENANT-1 vni 10100
+   vxlan vrf TENANT-2 vni 10200
+!
+ip virtual-router mac-address 00:00:00:00:00:01
+!
+ip routing
+ip routing vrf TENANT-1
+ip routing vrf TENANT-2
+!
+router bgp 65000
+   neighbor 11.11.11.11 remote-as 65000
+   neighbor 11.11.11.11 update-source Loopback0
+   neighbor 11.11.11.11 send-community extended
+   neighbor 22.22.22.22 remote-as 65000
+   neighbor 22.22.22.22 update-source Loopback0
+   neighbor 22.22.22.22 send-community extended
+   !
+   vlan 10
+      rd auto
+      route-target both 65000:10010
+      redistribute learned
+   !
+   vlan 20
+      rd auto
+      route-target both 65000:10020
+      redistribute learned
+   !
+   vlan 30
+      rd auto
+      route-target both 65000:10030
+      redistribute learned
+   !
+   vlan 101
+      rd auto
+      route-target both 65000:10101
+      redistribute learned
+   !
+   vlan 102
+      rd auto
+      route-target both 65000:10102
+      redistribute learned
+   !
+   address-family evpn
+      neighbor 11.11.11.11 activate
+      neighbor 22.22.22.22 activate
+   !
+   address-family ipv4
+      no neighbor 11.11.11.11 activate
+      no neighbor 22.22.22.22 activate
+   !
+   vrf TENANT-1
+      rd 65000:10100
+      route-target import evpn 65000:10100
+      route-target export evpn 65000:10100
+      neighbor 10.10.10.3 remote-as 55000
+      !
+      address-family ipv4
+         redistribute connected
+   !
+   vrf TENANT-2
+      rd 65000:10200
+      route-target import evpn 65000:10200
+      route-target export evpn 65000:10200
+      neighbor 10.20.20.3 remote-as 55000
+      !
+      address-family ipv4
+         redistribute connected
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1
+   router-id 2.2.2.2
+   bfd default
+   max-lsa 12000
+!
+end
+hostname LEAF-3
+!
+spanning-tree mode rapid-pvst
+spanning-tree root super
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vlan 10,20,30
+!
+vrf instance TENANT-1
+!
+vrf instance TENANT-2
+!
+interface Port-Channel1
+   switchport mode trunk
+   !
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:3434
+      route-target import 00:00:00:00:00:34
+   lacp system-id 02aa.aaaa.3434
+!
+interface Ethernet1
+!
+interface Ethernet2
+!
+interface Ethernet3
+   no switchport
+   ip address 10.0.0.9/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet4
+   no switchport
+   ip address 10.0.0.11/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+   channel-group 1 mode active
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 3.3.3.3/32
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+interface Vlan10
+   vrf TENANT-1
+   ip address virtual 192.168.10.1/24
+!
+interface Vlan20
+   vrf TENANT-1
+   ip address virtual 192.168.20.1/24
+!
+interface Vlan30
+   vrf TENANT-2
+   ip address virtual 192.168.30.1/24
+!
+interface Vxlan1
+   vxlan source-interface Loopback0
+   vxlan udp-port 4789
+   vxlan vlan 10 vni 10010
+   vxlan vlan 20 vni 10020
+   vxlan vlan 30 vni 10030
+   vxlan vrf TENANT-1 vni 10100
+   vxlan vrf TENANT-2 vni 10200
+!
+ip virtual-router mac-address 00:00:00:00:00:01
+!
+ip routing
+ip routing vrf TENANT-1
+ip routing vrf TENANT-2
+!
+router bgp 65000
+   neighbor 11.11.11.11 remote-as 65000
+   neighbor 11.11.11.11 update-source Loopback0
+   neighbor 11.11.11.11 send-community extended
+   neighbor 22.22.22.22 remote-as 65000
+   neighbor 22.22.22.22 update-source Loopback0
+   neighbor 22.22.22.22 send-community extended
+   !
+   vlan 10
+      rd auto
+      route-target both 65000:10010
+      redistribute learned
+   !
+   vlan 20
+      rd auto
+      route-target both 65000:10020
+      redistribute learned
+   !
+   vlan 30
+      rd auto
+      route-target both 65000:10030
+      redistribute learned
+   !
+   address-family evpn
+      neighbor 11.11.11.11 activate
+      neighbor 22.22.22.22 activate
+   !
+   address-family ipv4
+      no neighbor 11.11.11.11 activate
+      no neighbor 22.22.22.22 activate
+   !
+   vrf TENANT-1
+      rd 65000:10100
+      route-target import evpn 65000:10100
+      route-target export evpn 65000:10100
+      !
+      address-family ipv4
+         redistribute connected
+   !
+   vrf TENANT-2
+      rd 65000:10200
+      route-target import evpn 65000:10200
+      route-target export evpn 65000:10200
+      !
+      address-family ipv4
+         redistribute connected
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1
+   router-id 3.3.3.3
+   bfd default
+   max-lsa 12000
+!
+end
+hostname LEAF-4
+!
+spanning-tree mode rapid-pvst
+spanning-tree root super
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+vlan 10,20,30
+!
+vrf instance TENANT-1
+!
+vrf instance TENANT-2
+!
+interface Port-Channel1
+   switchport mode trunk
+   !
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:3434
+      route-target import 00:00:00:00:00:34
+   lacp system-id 02aa.aaaa.3434
+!
+interface Ethernet1
+!
+interface Ethernet2
+!
+interface Ethernet3
+   no switchport
+   ip address 10.0.0.15/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet4
+   no switchport
+   ip address 10.0.0.13/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet5
+   switchport access vlan 30
+!
+interface Ethernet6
+!
+interface Ethernet7
+   channel-group 1 mode active
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 4.4.4.4/32
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+interface Vlan10
+   vrf TENANT-1
+   ip address virtual 192.168.10.1/24
+!
+interface Vlan20
+   vrf TENANT-1
+   ip address virtual 192.168.20.1/24
+!
+interface Vlan30
+   vrf TENANT-2
+   ip address virtual 192.168.30.1/24
+!
+interface Vxlan1
+   vxlan source-interface Loopback0
+   vxlan udp-port 4789
+   vxlan vlan 10 vni 10010
+   vxlan vlan 20 vni 10020
+   vxlan vlan 30 vni 10030
+   vxlan vrf TENANT-1 vni 10100
+   vxlan vrf TENANT-2 vni 10200
+!
+ip virtual-router mac-address 00:00:00:00:00:01
+!
+ip routing
+ip routing vrf TENANT-1
+ip routing vrf TENANT-2
+!
+router bgp 65000
+   neighbor 11.11.11.11 remote-as 65000
+   neighbor 11.11.11.11 update-source Loopback0
+   neighbor 11.11.11.11 send-community extended
+   neighbor 22.22.22.22 remote-as 65000
+   neighbor 22.22.22.22 update-source Loopback0
+   neighbor 22.22.22.22 send-community extended
+   !
+   vlan 10
+      rd auto
+      route-target both 65000:10010
+      redistribute learned
+   !
+   vlan 20
+      rd auto
+      route-target both 65000:10020
+      redistribute learned
+   !
+   vlan 30
+      rd auto
+      route-target both 65000:10030
+      redistribute learned
+   !
+   address-family evpn
+      neighbor 11.11.11.11 activate
+      neighbor 22.22.22.22 activate
+   !
+   address-family ipv4
+      no neighbor 11.11.11.11 activate
+      no neighbor 22.22.22.22 activate
+   !
+   vrf TENANT-1
+      rd 65000:10100
+      route-target import evpn 65000:10100
+      route-target export evpn 65000:10100
+      !
+      address-family ipv4
+         redistribute connected
+   !
+   vrf TENANT-2
+      rd 65000:10200
+      route-target import evpn 65000:10200
+      route-target export evpn 65000:10200
+      !
+      address-family ipv4
+         redistribute connected
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1
+   router-id 4.4.4.4
+   bfd default
+   max-lsa 12000
+!
+end
+
+ostname SPINE-1
+!
+spanning-tree mode mstp
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+interface Ethernet1
+   no switchport
+   ip address 10.0.0.0/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet2
+   no switchport
+   ip address 10.0.0.4/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet3
+   no switchport
+   ip address 10.0.0.8/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet4
+   no switchport
+   ip address 10.0.0.12/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 11.11.11.11/32
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+ip routing
+!
+router bgp 65000
+   neighbor 1.1.1.1 remote-as 65000
+   neighbor 1.1.1.1 update-source Loopback0
+   neighbor 1.1.1.1 route-reflector-client
+   neighbor 1.1.1.1 send-community extended
+   neighbor 2.2.2.2 remote-as 65000
+   neighbor 2.2.2.2 update-source Loopback0
+   neighbor 2.2.2.2 route-reflector-client
+   neighbor 2.2.2.2 send-community extended
+   neighbor 3.3.3.3 remote-as 65000
+   neighbor 3.3.3.3 update-source Loopback0
+   neighbor 3.3.3.3 route-reflector-client
+   neighbor 3.3.3.3 send-community extended
+   neighbor 4.4.4.4 remote-as 65000
+   neighbor 4.4.4.4 update-source Loopback0
+   neighbor 4.4.4.4 route-reflector-client
+   neighbor 4.4.4.4 send-community extended
+   !
+   address-family evpn
+      neighbor 1.1.1.1 activate
+      neighbor 2.2.2.2 activate
+      neighbor 3.3.3.3 activate
+      neighbor 4.4.4.4 activate
+   !
+   address-family ipv4
+      no neighbor 1.1.1.1 activate
+      no neighbor 2.2.2.2 activate
+      no neighbor 3.3.3.3 activate
+      no neighbor 4.4.4.4 activate
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1
+   router-id 11.11.11.11
+   bfd default
+   max-lsa 12000
+!
+hostname SPINE-2
+!
+spanning-tree mode mstp
+!
+system l1
+   unsupported speed action error
+   unsupported error-correction action error
+!
+interface Ethernet1
+   no switchport
+   ip address 10.0.0.6/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet2
+   no switchport
+   ip address 10.0.0.2/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet3
+   no switchport
+   ip address 10.0.0.14/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet4
+   no switchport
+   ip address 10.0.0.10/31
+   ip ospf area 0.0.0.0
+!
+interface Ethernet5
+!
+interface Ethernet6
+!
+interface Ethernet7
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 22.22.22.22/32
+   ip ospf area 0.0.0.0
+!
+interface Management1
+!
+ip routing
+!
+router bgp 65000
+   neighbor 1.1.1.1 remote-as 65000
+   neighbor 1.1.1.1 update-source Loopback0
+   neighbor 1.1.1.1 route-reflector-client
+   neighbor 1.1.1.1 send-community extended
+   neighbor 2.2.2.2 remote-as 65000
+   neighbor 2.2.2.2 update-source Loopback0
+   neighbor 2.2.2.2 route-reflector-client
+   neighbor 2.2.2.2 send-community extended
+   neighbor 3.3.3.3 remote-as 65000
+   neighbor 3.3.3.3 update-source Loopback0
+   neighbor 3.3.3.3 route-reflector-client
+   neighbor 3.3.3.3 send-community extended
+   neighbor 4.4.4.4 remote-as 65000
+   neighbor 4.4.4.4 update-source Loopback0
+   neighbor 4.4.4.4 route-reflector-client
+   neighbor 4.4.4.4 send-community extended
+   !
+   address-family evpn
+      neighbor 1.1.1.1 activate
+      neighbor 2.2.2.2 activate
+      neighbor 3.3.3.3 activate
+      neighbor 4.4.4.4 activate
+   !
+   address-family ipv4
+      no neighbor 1.1.1.1 activate
+      no neighbor 2.2.2.2 activate
+      no neighbor 3.3.3.3 activate
+      no neighbor 4.4.4.4 activate
+!
+router multicast
+   ipv4
+      software-forwarding kernel
+   !
+   ipv6
+      software-forwarding kernel
+!
+router ospf 1
+   router-id 22.22.22.22
+   bfd default
+   max-lsa 12000
+!
+end

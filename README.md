@@ -258,26 +258,564 @@ end
 **L1**
 
 ```
+service routing protocols model multi-agent
+!
+no logging console
+no logging monitor
+!
+hostname L1
+!
+vlan 10
+   name VLAN10
+!
+vrf instance VRF1
+!
+interface Ethernet1
+   description <spine S1>
+   mtu 9214
+   no switchport
+   ip address 10.1.1.2/30
+!
+interface Ethernet2
+   description <spine S2>
+   mtu 9214
+   no switchport
+   ip address 10.2.1.2/30
+!
+interface Ethernet8
+   description <PC10>
+   mtu 9214
+   switchport access vlan 10
+!
+interface Loopback0
+   ip address 172.16.11.1/32
+!
+interface Vlan10
+   description <User`s VLAN10>
+   vrf VRF1
+   ip address virtual 192.168.10.1/24
+!
+interface Vxlan1
+   vxlan source-interface Loopback0
+   vxlan udp-port 4789
+   vxlan vlan 10 vni 10010
+   vxlan vrf VRF1 vni 111111
+   vxlan learn-restrict any
+!
+ip virtual-router mac-address aa:11:00:00:00:00
+!
+ip routing
+ip routing vrf VRF1
+!
+router bgp 65501
+   router-id 1.0.0.1
+   no bgp default ipv4-unicast
+   timers bgp 1 3
+   distance bgp 20 200 200
+   maximum-paths 2 ecmp 2
+   neighbor EVPN peer group
+   neighbor EVPN remote-as 65550
+   neighbor EVPN update-source Loopback0
+   neighbor EVPN ebgp-multihop 3
+   neighbor EVPN send-community extended
+   neighbor SPINE peer group
+   neighbor SPINE remote-as 65550
+   neighbor SPINE out-delay 0
+   neighbor SPINE password 7 TELv/X/TsJAOPeWXSZ/FGA==
+   neighbor 10.1.1.1 peer group SPINE
+   neighbor 10.2.1.1 peer group SPINE
+   neighbor 172.16.1.1 peer group EVPN
+   neighbor 172.16.2.1 peer group EVPN
+   !
+   vlan 10
+      rd auto
+      route-target both 10:10010
+      redistribute learned
+   !
+   address-family evpn
+      neighbor EVPN activate
+   !
+   address-family ipv4
+      neighbor SPINE activate
+      network 172.16.11.1/32
+   !
+   vrf VRF1
+      rd 65501:1
+      route-target import evpn 1:111111
+      route-target export evpn 1:111111
+      redistribute connected
+!
+end
 ```
 
 **L2**
 
 ```
+service routing protocols model multi-agent
+!
+no logging console
+no logging monitor
+!
+hostname L2
+!
+vlan 20
+   name VLAN20
+!
+vrf instance VRF2
+!
+interface Ethernet1
+   description <spine S1>
+   mtu 9214
+   no switchport
+   ip address 10.1.2.2/30
+!
+interface Ethernet2
+   description <spine S2>
+   mtu 9214
+   no switchport
+   ip address 10.2.2.2/30
+!
+interface Ethernet8
+   description <PC20>
+   mtu 9214
+   switchport access vlan 20
+!
+interface Loopback0
+   ip address 172.16.12.1/32
+!
+interface Vlan20
+   description <User`s VLAN20>
+   vrf VRF2
+   ip address virtual 192.168.20.1/24
+!
+interface Vxlan1
+   vxlan source-interface Loopback0
+   vxlan udp-port 4789
+   vxlan vlan 20 vni 10020
+   vxlan vrf VRF2 vni 222222
+   vxlan learn-restrict any
+!
+ip virtual-router mac-address aa:11:00:00:00:00
+!
+ip routing
+ip routing vrf VRF2
+!
+router bgp 65502
+   router-id 1.0.0.2
+   no bgp default ipv4-unicast
+   timers bgp 1 3
+   distance bgp 20 200 200
+   maximum-paths 2 ecmp 2
+   neighbor EVPN peer group
+   neighbor EVPN remote-as 65550
+   neighbor EVPN update-source Loopback0
+   neighbor EVPN ebgp-multihop 3
+   neighbor EVPN send-community extended
+   neighbor SPINE peer group
+   neighbor SPINE remote-as 65550
+   neighbor SPINE out-delay 0
+   neighbor SPINE password 7 TELv/X/TsJAOPeWXSZ/FGA==
+   neighbor 10.1.2.1 peer group SPINE
+   neighbor 10.2.2.1 peer group SPINE
+   neighbor 172.16.1.1 peer group EVPN
+   neighbor 172.16.2.1 peer group EVPN
+   !
+   vlan 20
+      rd auto
+      route-target both 20:10020
+      redistribute learned
+   !
+   address-family evpn
+      neighbor EVPN activate
+   !
+   address-family ipv4
+      neighbor SPINE activate
+      network 172.16.12.1/32
+   !
+   vrf VRF2
+      rd 65502:2
+      route-target import evpn 2:222222
+      route-target export evpn 2:222222
+      redistribute connected
+!
+end
 ```
 
 **L3**
 
 ```
+hostname L3
+!
+vlan 10
+   name VLAN10
+!
+vlan 20
+   name VLAN20
+!
+vlan 50
+   name TRANSPORT_VLAN10
+!
+vlan 60
+   name TRANSPORT_VLAN20
+!
+vrf instance VRF1
+!
+vrf instance VRF2
+!
+interface Port-Channel8
+   switchport mode trunk
+   !
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:1111
+      route-target import 00:00:00:00:11:11
+   lacp system-id 1111.2222.3333
+!
+interface Ethernet1
+   description <spine S1>
+   mtu 9214
+   no switchport
+   ip address 10.1.3.2/30
+!
+interface Ethernet2
+   description <spine S2>
+   mtu 9214
+   no switchport
+   ip address 10.2.3.2/30
+!
+interface Ethernet8
+   description <BGW>
+   mtu 9214
+   channel-group 8 mode active
+!
+interface Loopback0
+   ip address 172.16.13.1/32
+!
+interface Loopback1
+   ip address 10.0.0.100/32
+!
+interface Vlan10
+   description <User`s VLAN 10>
+   vrf VRF1
+   ip address virtual 192.168.10.1/24
+!
+interface Vlan20
+   description <User`s VLAN 20>
+   vrf VRF2
+   ip address virtual 192.168.20.1/24
+!
+interface Vlan50
+   description <Transport for VLAN10>
+   vrf VRF1
+   ip address 192.168.50.1/29
+!
+interface Vlan60
+   description <Transport for VLAN20>
+   vrf VRF2
+   ip address 192.168.60.1/29
+!
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan udp-port 4789
+   vxlan vlan 10 vni 10010
+   vxlan vlan 20 vni 10020
+   vxlan vlan 50 vni 10050
+   vxlan vlan 60 vni 10060
+   vxlan vrf VRF1 vni 111111
+   vxlan vrf VRF2 vni 222222
+   vxlan learn-restrict any
+!
+ip virtual-router mac-address aa:11:00:00:00:00
+!
+ip routing
+ip routing vrf VRF1
+ip routing vrf VRF2
+!
+router bgp 65503
+   router-id 1.0.0.3
+   no bgp default ipv4-unicast
+   timers bgp 1 3
+   distance bgp 20 200 200
+   maximum-paths 2 ecmp 2
+   neighbor EVPN peer group
+   neighbor EVPN remote-as 65550
+   neighbor EVPN update-source Loopback0
+   neighbor EVPN ebgp-multihop 3
+   neighbor EVPN send-community extended
+   neighbor SPINE peer group
+   neighbor SPINE remote-as 65550
+   neighbor SPINE out-delay 0
+   neighbor SPINE password 7 TELv/X/TsJAOPeWXSZ/FGA==
+   neighbor 10.1.3.1 peer group SPINE
+   neighbor 10.2.3.1 peer group SPINE
+   neighbor 172.16.1.1 peer group EVPN
+   neighbor 172.16.2.1 peer group EVPN
+   !
+   vlan 10
+      rd auto
+      route-target both 10:10010
+      redistribute learned
+   !
+   vlan 20
+      rd auto
+      route-target both 20:10020
+      redistribute learned
+   !
+   vlan 50
+      rd auto
+      route-target both 50:10050
+      redistribute learned
+   !
+   vlan 60
+      rd auto
+      route-target both 60:10060
+      redistribute learned
+   !
+   address-family evpn
+      neighbor EVPN activate
+   !
+   address-family ipv4
+      neighbor SPINE activate
+      network 10.0.0.100/32
+      network 172.16.13.1/32
+   !
+   vrf VRF1
+      rd 65503:1
+      route-target import evpn 1:111111
+      route-target export evpn 1:111111
+      neighbor 192.168.50.3 remote-as 65500
+      redistribute connected
+      !
+      address-family ipv4
+         neighbor 192.168.50.3 activate
+   !
+   vrf VRF2
+      rd 65503:2
+      route-target import evpn 2:222222
+      route-target export evpn 2:222222
+      neighbor 192.168.60.3 remote-as 65500
+      redistribute connected
+      !
+      address-family ipv4
+         neighbor 192.168.60.3 activate
+!
+end
 ```
 
 **L4**
 
 ```
+no logging console
+no logging monitor
+!
+hostname L4
+!
+vlan 10
+   name VLAN10
+!
+vlan 20
+   name VLAN20
+!
+vlan 50
+   name TRANSPORT_VLAN10
+!
+vlan 60
+   name TRANSPORT_VLAN20
+!
+vrf instance VRF1
+!
+vrf instance VRF2
+!
+interface Port-Channel8
+   switchport mode trunk
+   !
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:1111
+      route-target import 00:00:00:00:11:11
+   lacp system-id 1111.2222.3333
+!
+interface Ethernet1
+   description <spine S1>
+   mtu 9214
+   no switchport
+   ip address 10.1.4.2/30
+!
+interface Ethernet2
+   description <spine S2>
+   mtu 9214
+   no switchport
+   ip address 10.2.4.2/30
+!
+interface Ethernet8
+   description <BGW>
+   mtu 9214
+   channel-group 8 mode active
+!
+interface Loopback0
+   ip address 172.16.14.1/32
+!
+interface Loopback1
+   ip address 10.0.0.100/32
+!
+interface Vlan10
+   description <User`s VLAN 10>
+   vrf VRF1
+   ip address virtual 192.168.10.1/24
+!
+interface Vlan20
+   description <User`s VLAN 20>
+   vrf VRF2
+   ip address virtual 192.168.20.1/24
+!
+interface Vlan50
+   description <Transport for VLAN10>
+   vrf VRF1
+   ip address 192.168.50.2/29
+!
+interface Vlan60
+   description <Transport for VLAN20>
+   vrf VRF2
+   ip address 192.168.60.2/29
+!
+interface Vxlan1
+   vxlan source-interface Loopback1
+   vxlan udp-port 4789
+   vxlan vlan 10 vni 10010
+   vxlan vlan 20 vni 10020
+   vxlan vlan 50 vni 10050
+   vxlan vlan 60 vni 10060
+   vxlan vrf VRF1 vni 111111
+   vxlan vrf VRF2 vni 222222
+   vxlan learn-restrict any
+!
+ip virtual-router mac-address aa:11:00:00:00:00
+!
+ip routing
+ip routing vrf VRF1
+ip routing vrf VRF2
+!
+router bgp 65504
+   router-id 1.0.0.4
+   no bgp default ipv4-unicast
+   timers bgp 1 3
+   distance bgp 20 200 200
+   maximum-paths 2 ecmp 2
+   neighbor EVPN peer group
+   neighbor EVPN remote-as 65550
+   neighbor EVPN update-source Loopback0
+   neighbor EVPN ebgp-multihop 3
+   neighbor EVPN send-community extended
+   neighbor SPINE peer group
+   neighbor SPINE remote-as 65550
+   neighbor SPINE out-delay 0
+   neighbor SPINE password 7 TELv/X/TsJAOPeWXSZ/FGA==
+   neighbor 10.1.4.1 peer group SPINE
+   neighbor 10.2.4.1 peer group SPINE
+   neighbor 172.16.1.1 peer group EVPN
+   neighbor 172.16.2.1 peer group EVPN
+   !
+   vlan 10
+      rd auto
+      route-target both 10:10010
+      redistribute learned
+   !
+   vlan 20
+      rd auto
+      route-target both 20:10020
+      redistribute learned
+   !
+   vlan 50
+      rd auto
+      route-target both 50:10050
+      redistribute learned
+   !
+   vlan 60
+      rd auto
+      route-target both 60:10060
+      redistribute learned
+   !
+   address-family evpn
+      neighbor EVPN activate
+   !
+   address-family ipv4
+      neighbor SPINE activate
+      network 10.0.0.100/32
+      network 172.16.14.1/32
+   !
+   vrf VRF1
+      rd 65504:1
+      route-target import evpn 1:111111
+      route-target export evpn 1:111111
+      neighbor 192.168.50.3 remote-as 65500
+      redistribute connected
+      !
+      address-family ipv4
+         neighbor 192.168.50.3 activate
+   !
+   vrf VRF2
+      rd 65504:2
+      route-target import evpn 2:222222
+      route-target export evpn 2:222222
+      neighbor 192.168.60.3 remote-as 65500
+      redistribute connected
+      !
+      address-family ipv4
+         neighbor 192.168.60.3 activate
+!
+end
 ```
 
 **BGW**
 
 ```
+hostname BGW
+!
+spanning-tree mode mstp
+!
+vlan 50
+   name TRANSPORT_VLAN10
+!
+vlan 60
+   name TRANSPORT_VLAN20
+!
+interface Port-Channel12
+   switchport mode trunk
+!
+interface Ethernet1
+   description <leaf L3>
+   mtu 9214
+   channel-group 12 mode active
+!
+interface Ethernet2
+   description <leaf L4>
+   mtu 9214
+   channel-group 12 mode active
+!
+interface Loopback0
+   ip address 10.10.10.10/32
+!
+interface Vlan50
+   description <Transport for VLAN10>
+   ip address 192.168.50.3/29
+!
+interface Vlan60
+   description <Transport for VLAN20>
+   ip address 192.168.60.3/29
+!
+ip routing
+!
+router bgp 65500
+   router-id 1.1.1.1
+   neighbor 192.168.50.1 remote-as 65503
+   neighbor 192.168.50.1 remove-private-as all replace-as
+   neighbor 192.168.50.2 remote-as 65504
+   neighbor 192.168.50.2 remove-private-as all replace-as
+   neighbor 192.168.60.1 remote-as 65503
+   neighbor 192.168.60.1 remove-private-as all replace-as
+   neighbor 192.168.60.2 remote-as 65504
+   neighbor 192.168.60.2 remove-private-as all replace-as
+   network 10.10.10.10/32
+!
+end
 ```
 
 ## Описание типовых настроек
