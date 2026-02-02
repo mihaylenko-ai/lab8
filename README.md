@@ -103,18 +103,18 @@
 
 ## Описание стенда
 
-В рамках лабораторной работы на предоставленном учебным центром лабораторном окружении было использовано пять коммутаторов. Данные коммутаторы были соеденины линиями связи по
-схеме CLOS, два из которых (S1 и S2) выступают в качестве Spine устройств, и три (L1,L2 и L3) в качестве Leaf устройств. Схема сети в рамках лабораторного окружения представлена
+В рамках лабораторной работы на предоставленном учебным центром лабораторном окружении было использовано шесть коммутаторов. Данные коммутаторы были соеденины линиями связи по
+схеме CLOS, два из которых (S1 и S2) выступают в качестве Spine устройств, и три (L1,L2,L3 и L4) в качестве Leaf устройств. Схема сети в рамках лабораторного окружения представлена
 на рисунке ниже
 
 ![netmap](images/netmap.jpg)
 
 ## Настройка устройств
 
-В рамках учебной лабораторной среды на всех сетевых устройствах был настроен протокол EVPN VXLAN поверх Underlay сети с импользованием eBGP протокола. Так как в качестве UNDERLAY сети 
-мы взяли протокол eBGP, все Spine устройства находятся в одной автономной системе (AS65550), в то время как каждое устройство Leaf находится в своей автономной системе 
+В рамках учебной лабораторной среды на всех сетевых устройствах был настроен протокол EVPN VXLAN поверх Underlay сети с импользованием eBGP протокола. Так как в качестве UNDERLAY
+сети был взят протокол eBGP, все Spine устройства находятся в одной автономной системе (AS65550), в то время как каждое устройство Leaf находится в своей автономной системе 
 (AS65501-AS65549). На каждом из Leaf устройст был поднят свой NVE, произведены настройки EVPN XVLAN, а так же настройены соответствующие VLAN, которые и будут масштабироваться 
-между Leaf устройствами.
+между Leaf устройствами. Устройства Leaf L3 и L4 были объеденины посредством EVPN Multihoming.
 
 
 Ниже приведены частичные настройки файлов конфигураций сетевых устройств:
@@ -146,13 +146,19 @@ interface Ethernet3
    no switchport
    ip address 10.1.3.1/30
 !
+interface Ethernet4
+   description <leaf L4>
+   mtu 9214
+   no switchport
+   ip address 10.1.4.1/30
+!
 interface Loopback0
    ip address 172.16.1.1/32
 !
 ip routing
 !
 peer-filter LEAFS_ASN
-   10 match as-range 65501-65503 result accept
+   10 match as-range 65501-65504 result accept
 !
 router bgp 65550
    router-id 1.0.1.1
@@ -206,13 +212,19 @@ interface Ethernet3
    no switchport
    ip address 10.2.3.1/30
 !
+interface Ethernet4
+   description <leaf L4>
+   mtu 9214
+   no switchport
+   ip address 10.2.4.1/30
+!
 interface Loopback0
    ip address 172.16.2.1/32
 !
 ip routing
 !
 peer-filter LEAFS_ASN
-   10 match as-range 65501-65503 result accept
+   10 match as-range 65501-65504 result accept
 !
 router bgp 65550
    router-id 1.0.1.2
@@ -246,312 +258,52 @@ end
 **L1**
 
 ```
-service routing protocols model multi-agent
-!
-hostname L1
-!
-vlan 10
-   name users1
-!
-vrf instance VRF1
-!
-interface Ethernet1
-   description <spine S1>
-   mtu 9214
-   no switchport
-   ip address 10.1.1.2/30
-!
-interface Ethernet2
-   description <spine S2>
-   mtu 9214
-   no switchport
-   ip address 10.2.1.2/30
-!
-interface Ethernet8
-   description <PC10>
-   mtu 9214
-   switchport access vlan 10
-!
-interface Loopback0
-   ip address 172.16.11.1/32
-!
-interface Vlan10
-   description <User`s VLAN10>
-   vrf VRF1
-   ip address 192.168.10.254/24
-   ip virtual-router address 192.168.10.1
-!
-interface Vxlan1
-   vxlan source-interface Loopback0
-   vxlan udp-port 4789
-   vxlan vlan 10 vni 10010
-   vxlan vrf VRF1 vni 111111
-   vxlan learn-restrict any
-!
-ip virtual-router mac-address aa:11:00:00:00:00
-!
-ip routing
-ip routing vrf VRF1
-!
-router bgp 65501
-   router-id 1.0.0.1
-   no bgp default ipv4-unicast
-   timers bgp 1 3
-   distance bgp 20 200 200
-   maximum-paths 2 ecmp 2
-   neighbor EVPN peer group
-   neighbor EVPN remote-as 65550
-   neighbor EVPN update-source Loopback0
-   neighbor EVPN ebgp-multihop 3
-   neighbor EVPN send-community extended
-   neighbor SPINE peer group
-   neighbor SPINE remote-as 65550
-   neighbor SPINE out-delay 0
-   neighbor SPINE bfd
-   neighbor SPINE password 7 TELv/X/TsJAOPeWXSZ/FGA==
-   neighbor 10.1.1.1 peer group SPINE
-   neighbor 10.2.1.1 peer group SPINE
-   neighbor 172.16.1.1 peer group EVPN
-   neighbor 172.16.2.1 peer group EVPN
-   !
-   vlan 10
-      rd auto
-      route-target both 10:10010
-      redistribute learned
-   !
-   address-family evpn
-      neighbor EVPN activate
-   !
-   address-family ipv4
-      neighbor SPINE activate
-      network 172.16.11.1/32
-   !
-   vrf VRF1
-      rd 65501:1
-      route-target import evpn 1:111111
-      route-target export evpn 1:111111
-      redistribute connected
-!
-end
 ```
 
 **L2**
 
 ```
-service routing protocols model multi-agent
-!
-hostname L2
-!
-vlan 30
-   name servers
-!
-interface Ethernet1
-   description <spine S1>
-   mtu 9214
-   no switchport
-   ip address 10.1.2.2/30
-!
-interface Ethernet2
-   description <spine S2>
-   mtu 9214
-   no switchport
-   ip address 10.2.2.2/30
-!
-interface Ethernet8
-   description <Server1>
-   mtu 9214
-   switchport access vlan 30
-!
-interface Loopback0
-   ip address 172.16.12.1/32
-!
-interface Vlan30
-   description <Server`s VLAN30>
-   ip address 192.168.30.10/24
-!
-interface Vxlan1
-   vxlan source-interface Loopback0
-   vxlan udp-port 4789
-   vxlan vlan 30 vni 10030
-   vxlan learn-restrict any
-!
-ip routing
-!
-router bgp 65502
-   router-id 1.0.0.2
-   no bgp default ipv4-unicast
-   timers bgp 1 3
-   distance bgp 20 200 200
-   maximum-paths 2 ecmp 2
-   neighbor EVPN peer group
-   neighbor EVPN remote-as 65550
-   neighbor EVPN update-source Loopback0
-   neighbor EVPN ebgp-multihop 3
-   neighbor EVPN send-community extended
-   neighbor SPINE peer group
-   neighbor SPINE remote-as 65550
-   neighbor SPINE out-delay 0
-   neighbor SPINE bfd
-   neighbor SPINE password 7 TELv/X/TsJAOPeWXSZ/FGA==
-   neighbor 10.1.2.1 peer group SPINE
-   neighbor 10.2.2.1 peer group SPINE
-   neighbor 172.16.1.1 peer group EVPN
-   neighbor 172.16.2.1 peer group EVPN
-   !
-   vlan 30
-      rd auto
-      route-target both 30:10030
-      redistribute learned
-   !
-   address-family evpn
-      neighbor EVPN activate
-   !
-   address-family ipv4
-      neighbor SPINE activate
-      network 172.16.12.1/32
-   !
-!
-end
 ```
 
 **L3**
 
 ```
-service routing protocols model multi-agent
-!
-hostname L3
-!
-vlan 20
-   name users2
-!
-vrf instance VRF1
-!
-interface Ethernet1
-   description <spine S1>
-   mtu 9214
-   no switchport
-   ip address 10.1.3.2/30
-!
-interface Ethernet2
-   description <spine S2>
-   mtu 9214
-   no switchport
-   ip address 10.2.3.2/30
-!
-interface Ethernet3
-!
-interface Ethernet4
-!
-interface Ethernet5
-!
-interface Ethernet6
-!
-interface Ethernet7
-!
-interface Ethernet8
-   description <PC20>
-   mtu 9214
-   switchport access vlan 20
-!
-interface Loopback0
-   ip address 172.16.13.1/32
-!
-interface Vlan20
-   description <User`s VLAN 20>
-   vrf VRF1
-   ip address 192.168.20.254/24
-   ip virtual-router address 192.168.20.1
-!
-interface Vxlan1
-   vxlan source-interface Loopback0
-   vxlan udp-port 4789
-   vxlan vlan 20 vni 10020
-   vxlan vrf VRF1 vni 111111
-   vxlan learn-restrict any
-!
-ip virtual-router mac-address aa:11:00:00:00:00
-!
-ip routing
-ip routing vrf VRF1
-!
-router bgp 65503
-   router-id 1.0.0.3
-   no bgp default ipv4-unicast
-   timers bgp 1 3
-   distance bgp 20 200 200
-   maximum-paths 2 ecmp 2
-   neighbor EVPN peer group
-   neighbor EVPN remote-as 65550
-   neighbor EVPN update-source Loopback0
-   neighbor EVPN ebgp-multihop 3
-   neighbor EVPN send-community extended
-   neighbor SPINE peer group
-   neighbor SPINE remote-as 65550
-   neighbor SPINE out-delay 0
-   neighbor SPINE bfd
-   neighbor SPINE password 7 TELv/X/TsJAOPeWXSZ/FGA==
-   neighbor 10.1.3.1 peer group SPINE
-   neighbor 10.2.3.1 peer group SPINE
-   neighbor 172.16.1.1 peer group EVPN
-   neighbor 172.16.2.1 peer group EVPN
-   !
-   vlan 20
-      rd auto
-      route-target both 20:10020
-      redistribute learned
-   !
-   address-family evpn
-      neighbor EVPN activate
-   !
-   address-family ipv4
-      neighbor SPINE activate
-      network 172.16.13.1/32
-   !
-   vrf VRF1
-      rd 65503:1
-      route-target import evpn 1:111111
-      route-target export evpn 1:111111
-      redistribute connected
-!
-end
+```
+
+**L4**
+
+```
+```
+
+**BGW**
+
+```
 ```
 
 ## Описание типовых настроек
 
-Все типовые настройки были перенесены из лабораторной работы №5, за исключением замены конечного клиентского устройства, подключенного к маршрутизатору L2, который был включен в 
-отдельный Bridge сегмент VLAN30. Данная операция была проведена с целью подготовки лабораторного сденда с последующим лабораторным работам, а так же с целью демонстрации отсутствия
-L3 связности между сегментами, не включенными в IRB.
-
-В качестве алгоритма IRB будем использовать Симметричную (Symmetric) маршрутизацию, позволяющую используя единый L3VNI, а так же получить полноценную связность между раздичными L2
-Bridge доменами. На маршрутизаторах L1 и L3, была проведена настройка IRB, включающая в себя настройку отдельной VRF таблицы (дадим ей имя VRF1) а так же отдельного l3vni (дадим
-ему номер 111111), который будет един на всех тестовых Bridge доменах.
+Все типовые настройки были перенесены из лабораторной работы №6
 
 # Заключение
 
 ## Проверка работы сденда и результаты работы
 
-Стенд может считаться рабочим в случае установления L3 связности в рамках двух Bridge доменов VLAN10 (Leaf маршрутизатор L1) и VLAN20 (Leaf маршрутизатор L3).
+Стенд может считаться рабочим в случае установления L3 связности в рамках двух Bridge доменов VLAN10 (Leaf маршрутизатор L1) и VLAN20 (Leaf маршрутизатор L2) через распространяемый
+через EVPN route-type 5 маршрут граничного устройства BGW (Leaf маршрутизаторы L3 и L4)
 
-Нет смысла повторять ранее приведенные в лабораторной работе №5 результаты установления eBGP сессий, в данной лабораторной работе они будут абсолютно идентичны. В качестве проверки
-оценим доступность конечных устройств PC10, PC20 и Server1, находяжихся в различных подсетях. В случае положительного результата мы должны получить отклик между устройствами PC10 и
-PC20, однако устройство Server1 не должно иметь доступ 
+**Префикс-лист EVPN BGP маршрутов на устройстве L1**
 
-**Получение ECHO ICMP ответа от устройств PC10 и PC20**
+![S1](images/L1_BGP_path.jpg)
 
-![S1](images/PC10toPC20.jpg)
+**Получение ECHO ICMP ответа от устройств SERVER1 до PC20**
+
+![S1](images/SERVER1toPC20_ping.jpg)
+
+**Проверка трассировки маршрута от устройства SERVER1 до PC20**
+
+![S1](images/SERVER1toPC20_trace.jpg)
 
 Как видим каждое из конечных устройств получило доступ к своему сетевому сегменту L3, что подтверждает связность посредством L3VNI. 
-
-Теперь проверим доступность устройств PC10 и PC20 с сервера Server1
-
-**Получение ECHO ICMP ответа от устройста Server1 до PC10 и PC20**
-
-![S1](images/Server1toPC10PC20.jpg)
-
-![S1](images/L2mac-ip.jpg)
-
-Как видим, несмотря на наличи в таблице маршрутизации маршрутизатора L2 информации по всем устройствам на других маршрутизаторах (L1 и L3) доступ с устройства Server1 возможен
-исключительно на адрес SVI устройства L2. Доступ на устройства PC10 и PC20 отсутствует.
 
 ## Вывод
 
