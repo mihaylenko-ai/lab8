@@ -845,6 +845,8 @@ end
 
 ![S1](images/L3_route_vrf2.jpg)
 
+![S1](images/BGW_bgp.jpg)
+
 **Получение ECHO ICMP ответа от устройств PC10 до PC20**
 
 ![S1](images/PC10toPC20_ping.jpg)
